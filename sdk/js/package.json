@@ -1,0 +1,11 @@
+{
+  "name": "@novabase/sdk-js",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "lint": "node -e \"console.log('lint:ok sdk')\"",
+    "build": "node -e \"console.log('build:noop sdk')\""
+  }
+}

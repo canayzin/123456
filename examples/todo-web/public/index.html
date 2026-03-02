@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>NovaBase Todo Demo</title>
+  <style>body{font-family:Arial;max-width:700px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem} li{margin:.5rem 0}</style>
+</head>
+<body>
+  <h1>NovaBase Todo Demo</h1>
+  <div>
+    <input id="email" placeholder="email" value="demo@example.com" />
+    <input id="password" type="password" value="password123" />
+    <button id="signup">Sign Up</button>
+    <button id="signin">Sign In</button>
+  </div>
+  <div>
+    <input id="todoInput" placeholder="Add todo" />
+    <button id="addTodo">Add</button>
+  </div>
+  <ul id="todos"></ul>
+<script type="module">
+import { init } from './sdk.js';
+const client = init({
+  baseUrl: 'http://localhost:4002',
+  wsUrl: 'ws://localhost:4002',
+  projectId: 'demo-project'
+});
+
+const todos = document.getElementById('todos');
+const map = new Map();
+function draw() {
+  todos.innerHTML = '';
+  [...map.values()].forEach((todo) => {
+    const li = document.createElement('li');
+    li.textContent = `${todo.title} (${todo.done ? 'done' : 'open'})`;
+    todos.appendChild(li);
+  });
+}
+
+async function loadTodos() {
+  const res = await fetch('http://localhost:4002/v1/projects/demo-project/db/collections/todos/docs');
+  const data = await res.json();
+  data.docs.forEach((d) => map.set(d.id, d));
+  draw();
+}
+
+document.getElementById('signup').onclick = () => client.auth.signUp(email.value, password.value);
+document.getElementById('signin').onclick = () => client.auth.signIn(email.value, password.value);
+document.getElementById('addTodo').onclick = async () => {
+  const title = todoInput.value.trim();
+  if (!title) return;
+  const doc = await client.db.collection('todos').add({ title, done: false, ownerId: 'demo-user' });
+  map.set(doc.id, doc);
+  draw();
+  todoInput.value = '';
+};
+
+client.db.collection('todos').doc('ignored').onSnapshot((doc) => {
+  map.set(doc.id, doc);
+  draw();
+});
+
+loadTodos();
+</script>
+</body>
+</html>

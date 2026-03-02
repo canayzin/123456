@@ -1,0 +1,15 @@
+{
+  "name": "novabase",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "services/*",
+    "sdk/js",
+    "examples/todo-web"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "test": "npm run -ws test",
+    "lint": "npm run -ws lint"
+  }
+}

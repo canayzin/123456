@@ -4,6 +4,7 @@ import websocket from '@fastify/websocket';
 import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import { evaluateRules, runRuleTests } from '@novabase/rules-engine';
+import { buildStructuredQuery } from './query.js';
 
 const app = Fastify({ logger: true });
 const db = new Database(process.env.DOCDB_PATH || 'docdb.db');
@@ -21,6 +22,14 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_docs_project_collection ON documents(project_id, collection);
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  method TEXT NOT NULL,
+  path TEXT NOT NULL,
+  response_body TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 `);
 
 const rulesByProject = new Map();
@@ -28,10 +37,14 @@ const subscriptions = new Map();
 
 function decodeAuth(req) {
   const value = req.headers.authorization;
-  if (!value) return null;
-  const token = value.replace('Bearer ', '');
-  const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString() || '{}');
-  return { uid: payload.sub, email: payload.email };
+  if (!value?.startsWith('Bearer ')) return null;
+  try {
+    const token = value.replace('Bearer ', '');
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString() || '{}');
+    return { uid: payload.sub, email: payload.email };
+  } catch {
+    return null;
+  }
 }
 
 function getRules(projectId) {
@@ -45,14 +58,29 @@ function notify(projectId, collection, payload) {
   }
 }
 
+function getIdempotentResponse(req, projectId) {
+  const key = req.headers['idempotency-key'];
+  if (!key) return null;
+  const row = db.prepare('SELECT response_body FROM idempotency_keys WHERE id = ? AND project_id = ? AND method = ? AND path = ?')
+    .get(key, projectId, req.method, req.url);
+  return row ? JSON.parse(row.response_body) : null;
+}
+
+function saveIdempotentResponse(req, projectId, responseBody) {
+  const key = req.headers['idempotency-key'];
+  if (!key) return;
+  db.prepare('INSERT OR REPLACE INTO idempotency_keys (id, project_id, method, path, response_body, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(key, projectId, req.method, req.url, JSON.stringify(responseBody), new Date().toISOString());
+}
+
 app.post('/v1/projects/:pid/rules', async (req) => {
   rulesByProject.set(req.params.pid, req.body.rules || []);
   return { ok: true };
 });
 
-app.post('/v1/projects/:pid/rules/test', async (req) => {
-  return { results: runRuleTests({ rules: getRules(req.params.pid), tests: req.body.tests || [] }) };
-});
+app.post('/v1/projects/:pid/rules/test', async (req) => ({
+  results: runRuleTests({ rules: getRules(req.params.pid), tests: req.body.tests || [] })
+}));
 
 app.get('/v1/projects/:pid/db/collections/:col/docs', async (req) => {
   const docs = db.prepare('SELECT id, data, created_at, updated_at FROM documents WHERE project_id = ? AND collection = ? LIMIT ? OFFSET ?')
@@ -62,6 +90,9 @@ app.get('/v1/projects/:pid/db/collections/:col/docs', async (req) => {
 });
 
 app.post('/v1/projects/:pid/db/collections/:col/docs', async (req, reply) => {
+  const cached = getIdempotentResponse(req, req.params.pid);
+  if (cached) return cached;
+
   const auth = decodeAuth(req);
   const data = req.body || {};
   const check = evaluateRules({ rules: getRules(req.params.pid), request: { path: `/${req.params.col}`, method: 'create', auth, data } });
@@ -72,6 +103,7 @@ app.post('/v1/projects/:pid/db/collections/:col/docs', async (req, reply) => {
   db.prepare('INSERT INTO documents (id, project_id, collection, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(id, req.params.pid, req.params.col, JSON.stringify(data), now, now);
   const doc = { id, ...data, createdAt: now, updatedAt: now };
+  saveIdempotentResponse(req, req.params.pid, doc);
   notify(req.params.pid, req.params.col, { type: 'created', doc });
   return reply.code(201).send(doc);
 });
@@ -82,7 +114,20 @@ app.get('/v1/projects/:pid/db/collections/:col/docs/:id', async (req, reply) => 
   return { id: row.id, ...JSON.parse(row.data), createdAt: row.created_at, updatedAt: row.updated_at };
 });
 
+app.put('/v1/projects/:pid/db/collections/:col/docs/:id', async (req, reply) => {
+  req.body = req.body || {};
+  return app.inject({
+    method: 'PATCH',
+    url: `/v1/projects/${req.params.pid}/db/collections/${req.params.col}/docs/${req.params.id}`,
+    payload: req.body,
+    headers: req.headers
+  }).then((res) => reply.code(res.statusCode).send(JSON.parse(res.body || '{}')));
+});
+
 app.patch('/v1/projects/:pid/db/collections/:col/docs/:id', async (req, reply) => {
+  const cached = getIdempotentResponse(req, req.params.pid);
+  if (cached) return cached;
+
   const row = db.prepare('SELECT * FROM documents WHERE id = ? AND project_id = ? AND collection = ?').get(req.params.id, req.params.pid, req.params.col);
   if (!row) return reply.code(404).send({ error: 'not_found' });
 
@@ -95,6 +140,7 @@ app.patch('/v1/projects/:pid/db/collections/:col/docs/:id', async (req, reply) =
   const now = new Date().toISOString();
   db.prepare('UPDATE documents SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(next), now, req.params.id);
   const doc = { id: req.params.id, ...next, createdAt: row.created_at, updatedAt: now };
+  saveIdempotentResponse(req, req.params.pid, doc);
   notify(req.params.pid, req.params.col, { type: 'updated', doc });
   return doc;
 });
@@ -105,27 +151,37 @@ app.delete('/v1/projects/:pid/db/collections/:col/docs/:id', async (req) => {
   return { ok: true };
 });
 
-app.post('/v1/projects/:pid/db/query', async (req) => {
-  const { collection, where = [], orderBy = 'updated_at', direction = 'desc', limit = 20, offset = 0 } = req.body;
-  const clauses = ['project_id = ?', 'collection = ?'];
-  const args = [req.params.pid, collection];
-  for (const filter of where) {
-    clauses.push(`json_extract(data, '$.${filter.field}') = ?`);
-    args.push(filter.value);
+app.post('/v1/projects/:pid/db/query', async (req, reply) => {
+  try {
+    const query = buildStructuredQuery(req.body || {});
+    const baseClauses = ['project_id = ?', 'collection = ?'];
+    const args = [req.params.pid, query.collection, ...query.args];
+    const rows = db.prepare(`SELECT * FROM documents WHERE ${baseClauses.concat(query.clauses).join(' AND ')} ORDER BY ${query.orderBy} ${query.direction} LIMIT ? OFFSET ?`)
+      .all(...args, query.limit, query.offset)
+      .map((row) => ({ id: row.id, ...JSON.parse(row.data), createdAt: row.created_at, updatedAt: row.updated_at }));
+    return { docs: rows, page: { limit: query.limit, offset: query.offset } };
+  } catch (error) {
+    return reply.code(400).send({ error: String(error.message || error) });
   }
-  const rows = db.prepare(`SELECT * FROM documents WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} ${direction.toUpperCase()} LIMIT ? OFFSET ?`)
-    .all(...args, limit, offset)
-    .map((row) => ({ id: row.id, ...JSON.parse(row.data), createdAt: row.created_at, updatedAt: row.updated_at }));
-  return { docs: rows };
 });
 
-app.get('/v1/projects/:pid/db/subscribe/:col', { websocket: true }, (socket, req) => {
-  const key = `${req.params.pid}:${req.params.col}`;
-  if (!subscriptions.has(key)) subscriptions.set(key, new Set());
-  subscriptions.get(key).add(socket);
+app.get('/v1/projects/:pid/db/subscribe', { websocket: true }, (socket, req) => {
+  socket.on('message', (raw) => {
+    try {
+      const body = JSON.parse(raw.toString());
+      const collection = body.collection;
+      if (!collection) return;
+      const key = `${req.params.pid}:${collection}`;
+      if (!subscriptions.has(key)) subscriptions.set(key, new Set());
+      subscriptions.get(key).add(socket);
+      socket.send(JSON.stringify({ type: 'subscribed', collection, resumeToken: Date.now().toString() }));
+    } catch {
+      socket.send(JSON.stringify({ type: 'error', error: 'invalid_subscribe_payload' }));
+    }
+  });
 
   socket.on('close', () => {
-    subscriptions.get(key)?.delete(socket);
+    for (const set of subscriptions.values()) set.delete(socket);
   });
 });
 

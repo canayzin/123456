@@ -11,7 +11,7 @@ cd infra
 docker compose up --build
 ```
 
-## 3) Rules yükle (opsiyonel ama önerilen)
+## 3) Rules yükle
 ```bash
 curl -X POST http://localhost:4002/v1/projects/demo-project/rules \
   -H 'content-type: application/json' \
@@ -19,6 +19,7 @@ curl -X POST http://localhost:4002/v1/projects/demo-project/rules \
 ```
 
 ## 4) Demo
-- http://localhost:5173 adresine git.
-- Önce Sign Up veya Sign In.
-- Todo ekle, realtime güncellemeyi izleyin.
+- http://localhost:5173 aç.
+- Sign Up / Sign In yap.
+- Todo ekle.
+- İkinci tarayıcı sekmesinden aynı koleksiyona ekleme yaparak realtime eventleri gözlemle.

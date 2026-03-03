@@ -4,13 +4,17 @@ import { nanoid } from 'nanoid';
 const app = express();
 app.use(express.json());
 
+const organizations = [{ id: 'org-default', name: 'Default Org' }];
 const projects = [];
 
+app.get('/api/organizations', (_, res) => res.json(organizations));
 app.get('/api/projects', (_, res) => res.json(projects));
 app.post('/api/projects', (req, res) => {
   const project = {
     id: nanoid(),
+    orgId: req.body.orgId || organizations[0].id,
     name: req.body.name,
+    envs: ['dev', 'prod'],
     apiKey: `nb_${nanoid(24)}`,
     createdAt: new Date().toISOString()
   };
@@ -20,6 +24,7 @@ app.post('/api/projects', (req, res) => {
 
 app.get('/', (_, res) => {
   res.send(`<!doctype html><html><body><h1>NovaBase Console (MVP)</h1>
+  <p>Organization -> Projects -> Environments modeli (basic)</p>
   <input id='name' placeholder='Project name'/><button onclick='create()'>Create Project</button>
   <pre id='out'></pre>
   <script>

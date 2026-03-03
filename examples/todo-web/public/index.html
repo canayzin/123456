@@ -3,60 +3,80 @@
 <head>
   <meta charset="utf-8" />
   <title>NovaBase Todo Demo</title>
-  <style>body{font-family:Arial;max-width:700px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem} li{margin:.5rem 0}</style>
+  <style>body{font-family:Arial;max-width:760px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem} li{margin:.5rem 0} .row{display:flex;gap:.5rem;flex-wrap:wrap}</style>
 </head>
 <body>
   <h1>NovaBase Todo Demo</h1>
-  <div>
+  <p>Phase-1 MVP demo: Auth + DocDB + Rules + Realtime Subscribe.</p>
+  <div class="row">
     <input id="email" placeholder="email" value="demo@example.com" />
     <input id="password" type="password" value="password123" />
     <button id="signup">Sign Up</button>
     <button id="signin">Sign In</button>
   </div>
-  <div>
+  <div class="row">
     <input id="todoInput" placeholder="Add todo" />
     <button id="addTodo">Add</button>
   </div>
+  <pre id="status"></pre>
   <ul id="todos"></ul>
 <script type="module">
 import { init } from './sdk.js';
+
+const statusEl = document.getElementById('status');
 const client = init({
-  baseUrl: 'http://localhost:4002',
-  wsUrl: 'ws://localhost:4002',
-  projectId: 'demo-project'
+  appId: 'todo-web',
+  apiKey: 'demo-key',
+  projectId: 'demo-project',
+  authBaseUrl: 'http://localhost:4001',
+  dataBaseUrl: 'http://localhost:4002',
+  wsUrl: 'ws://localhost:4002'
 });
 
 const todos = document.getElementById('todos');
 const map = new Map();
+let currentUser = null;
+
+client.auth.onAuthStateChanged((user) => {
+  currentUser = user;
+  statusEl.textContent = `Logged in: ${user.email} (${user.id})`;
+});
+
 function draw() {
   todos.innerHTML = '';
   [...map.values()].forEach((todo) => {
     const li = document.createElement('li');
-    li.textContent = `${todo.title} (${todo.done ? 'done' : 'open'})`;
+    li.textContent = `${todo.title} (${todo.done ? 'done' : 'open'}) - owner:${todo.ownerId}`;
     todos.appendChild(li);
   });
 }
 
 async function loadTodos() {
-  const res = await fetch('http://localhost:4002/v1/projects/demo-project/db/collections/todos/docs');
-  const data = await res.json();
+  const data = await client.db.collection('todos').list({ limit: 50 });
   data.docs.forEach((d) => map.set(d.id, d));
   draw();
 }
 
-document.getElementById('signup').onclick = () => client.auth.signUp(email.value, password.value);
-document.getElementById('signin').onclick = () => client.auth.signIn(email.value, password.value);
+document.getElementById('signup').onclick = async () => {
+  await client.auth.signUp(email.value, password.value);
+  await loadTodos();
+};
+document.getElementById('signin').onclick = async () => {
+  await client.auth.signIn(email.value, password.value);
+  await loadTodos();
+};
 document.getElementById('addTodo').onclick = async () => {
   const title = todoInput.value.trim();
-  if (!title) return;
-  const doc = await client.db.collection('todos').add({ title, done: false, ownerId: 'demo-user' });
+  if (!title || !currentUser) return;
+  const doc = await client.db.collection('todos').add({ title, done: false, ownerId: currentUser.id });
   map.set(doc.id, doc);
   draw();
   todoInput.value = '';
 };
 
-client.db.collection('todos').doc('ignored').onSnapshot((doc) => {
-  map.set(doc.id, doc);
+client.db.collection('todos').onSnapshot((event) => {
+  if (event.type === 'deleted') map.delete(event.id);
+  if (event.doc) map.set(event.doc.id, event.doc);
   draw();
 });
 

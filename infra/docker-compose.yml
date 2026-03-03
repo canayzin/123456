@@ -1,0 +1,47 @@
+version: '3.9'
+services:
+  console:
+    build:
+      context: ..
+      dockerfile: console/Dockerfile
+    ports:
+      - "4000:4000"
+
+  auth:
+    build:
+      context: ..
+      dockerfile: services/auth/Dockerfile
+    environment:
+      - PORT=4001
+      - JWT_SECRET=local-dev-secret
+      - AUTH_DB_PATH=/data/auth.db
+    ports:
+      - "4001:4001"
+    volumes:
+      - auth_data:/data
+
+  docdb:
+    build:
+      context: ..
+      dockerfile: services/docdb/Dockerfile
+    environment:
+      - PORT=4002
+      - DOCDB_PATH=/data/docdb.db
+    ports:
+      - "4002:4002"
+    volumes:
+      - docdb_data:/data
+
+  demo:
+    build:
+      context: ..
+      dockerfile: examples/todo-web/Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - auth
+      - docdb
+
+volumes:
+  auth_data:
+  docdb_data:

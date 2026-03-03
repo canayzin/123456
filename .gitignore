@@ -1,0 +1,9 @@
+node_modules
+*.db
+npm-debug.log*
+data/*.json
+data/*.log
+secrets/*.json
+storage/*
+!/storage/.gitkeep
+!/storage/*.js

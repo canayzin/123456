@@ -1,0 +1,3 @@
+const fs=require('fs'); const path=require('path'); const {storageError}=require('./errors');
+class Buckets{constructor(root=path.join(process.cwd(),'data','object_store')){this.root=root;fs.mkdirSync(root,{recursive:true});} _projectDir(p){const d=path.join(this.root,p);fs.mkdirSync(d,{recursive:true});return d;} create(p,b,o={}){if(!/^[a-z0-9-_.]{3,63}$/i.test(b)) throw storageError('INVALID_BUCKET','Invalid bucket name'); const d=path.join(this._projectDir(p),b);fs.mkdirSync(d,{recursive:true});return {name:b,projectId:p,createdAt:Date.now(),options:o};} list(p){return fs.readdirSync(this._projectDir(p),{withFileTypes:true}).filter(d=>d.isDirectory()).map(d=>({name:d.name,projectId:p}));}}
+module.exports={Buckets};

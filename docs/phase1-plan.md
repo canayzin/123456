@@ -1,27 +1,16 @@
-# Faz 1 Ayrıntılı Plan
+# Faz 1 Plan ve Sonuç
 
-## Checklist
-- [x] Repo iskeleti (`services`, `sdk`, `console`, `docs`, `examples`, `infra`)
-- [x] Auth servis (signup/login/refresh/logout/me)
-- [x] DocDB CRUD + structured query
-- [x] Realtime subscribe (WebSocket)
-- [x] Rules engine + rules test runner
-- [x] JS SDK (auth + docdb)
-- [x] Todo demo uygulaması
-- [x] Docker compose local ortam
-- [x] Minimal CI (lint/test/build)
+## Master Plan
+- Faz 1: Auth + DocDB + Rules + SDK + Console + Demo ✅
+- Faz 2: RTDB + Storage
+- Faz 3: Functions
+- Faz 4: Push + Analytics/Crash
 
-## Ne değişti?
-- `services/auth/src/server.js`: email verify & forgot-password token akışları, admin audit log genişletmesi.
-- `services/docdb/src/server.js`: `/db/subscribe` protokolü, idempotency key cache, query parser entegrasyonu.
-- `services/docdb/src/query.js`: structured query doğrulama/normalizasyon.
-- `sdk/js/src/index.js`: auth ve data base URL ayrımı, typed error yapısı.
-- `examples/todo-web/public/index.html`: auth+docdb entegrasyonlu çalışır demo.
+## Faz 1 Ne Değişti?
+- TypeScript strict konfigurasyonları eklendi.
+- ESLint/Prettier/Husky ve conventional commit altyapısı eklendi.
+- Auth ve DocDB için standart error formatı, request-id, metrics, health ve OpenAPI endpointleri eklendi.
+- SDK ergonomisi `createClient().docDb.collection(...).where(...).limit(...).get()` modeline taşındı.
 
-## Çalıştırma Komutları
-```bash
-npm install
-npm test
-npm run lint
-cd infra && docker compose up --build
-```
+## Faz 1 Durumu
+**Faz 1 tamamlandı.**

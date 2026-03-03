@@ -1,41 +1,25 @@
-# Mimari Kararı ve Gerekçeler
+# Mimari
 
-## Seçim: Seçenek A (Hızlı MVP + Ölçeklenebilir)
-Node.js tabanlı servisler + WebSocket realtime + SQLite (MVP), faz ilerledikçe Postgres/Redis/NATS.
-
-## Bileşen Diyagramı
-
-```text
-[Admin Console] ---> [Console API]
-[JS SDK] ---> [Auth Service]
-[JS SDK] ---> [DocDB Service] ---> [Rules Engine]
-[DocDB Service] ---> [SQLite Doc Store]
-[Auth Service] ---> [SQLite Auth Store + Audit Logs]
-```
+## Seçim
+Seçenek A (Node.js servisleri, WS realtime, SQLite MVP).
 
 ## Veri Akışı
-1. Kullanıcı signup/login ile access + refresh token alır.
-2. SDK DocDB yazma isteği gönderir (`project_id` ile izole).
-3. Rules Engine auth/request/data context ile allow/deny verir.
-4. Yazma başarılıysa DocDB WebSocket abonelerine event fan-out yapar.
+1. Auth token üretir (JWT access + refresh).
+2. DocDB her istekte `project_id` izolasyonu uygular.
+3. Rules engine allow/deny verir.
+4. WS subscribers event alır.
 
-## Consistency Model
-- Auth: tek-writer DB üzerinde güçlü tutarlılık.
-- DocDB: tek düğümde güçlü tutarlılık; gelecekte çoklu node senaryosunda eventual+resume token yaklaşımı.
+## Threat Model
+- Brute force -> rate limiting
+- Auth bypass -> JWT doğrulama
+- Tenant breakout -> project scope
+- Replay -> idempotency keys
 
-## Threat Model (MVP)
-- Brute-force login -> rate limit + audit log.
-- Auth bypass -> JWT doğrulama ve rule auth kontrolleri.
-- Tenant isolation bug -> her endpointte `project_id` zorunluluğu.
-- Replay/duplicate write -> idempotency-key desteği.
-- Kötü niyetli query -> structured query parser doğrulaması.
+## Performans ve Maliyet Hedefi
+- Tek 8GB node hedefi: 1000 WS / 500 RPS
+- Read p95 < 150ms, broadcast < 200ms
 
-## Maliyet / Karmaşıklık
-- Düşük maliyet: tek Compose stack ile local çalışır.
-- Orta karmaşıklık: servis ayrımı korunur.
-- Ölçekleme yolu: SQLite -> Postgres JSONB, WS fan-out -> Redis/NATS, object storage -> MinIO/S3.
-
-## Gözlemlenebilirlik Yol Haritası
-- Faz 1: servis health endpoint + app log.
-- Faz 2: OTel traces + Prometheus metrics.
-- Faz 3: Grafana/Loki dashboard + alerting.
+## Ölçekleme Planı
+- Horizontal app replicas
+- Redis/NATS ile fanout
+- SQLite -> Postgres JSONB

@@ -3,84 +3,36 @@
 <head>
   <meta charset="utf-8" />
   <title>NovaBase Todo Demo</title>
-  <style>body{font-family:Arial;max-width:760px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem} li{margin:.5rem 0} .row{display:flex;gap:.5rem;flex-wrap:wrap}</style>
+  <style>body{font-family:Arial;max-width:760px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem}</style>
 </head>
 <body>
   <h1>NovaBase Todo Demo</h1>
-  <p>Phase-1 MVP demo: Auth + DocDB + Rules + Realtime Subscribe.</p>
-  <div class="row">
-    <input id="email" placeholder="email" value="demo@example.com" />
-    <input id="password" type="password" value="password123" />
-    <button id="signup">Sign Up</button>
-    <button id="signin">Sign In</button>
+  <div>
+    <input id="email" value="demo@example.com" /><input id="password" value="password123" type="password" />
+    <button id="signup">Sign Up</button><button id="signin">Sign In</button>
   </div>
-  <div class="row">
-    <input id="todoInput" placeholder="Add todo" />
-    <button id="addTodo">Add</button>
-  </div>
-  <pre id="status"></pre>
-  <ul id="todos"></ul>
+  <div><input id="todoInput" placeholder="todo" /><button id="addTodo">Add</button></div>
+  <pre id="status"></pre><ul id="todos"></ul>
 <script type="module">
-import { init } from './sdk.js';
-
-const statusEl = document.getElementById('status');
-const client = init({
-  appId: 'todo-web',
-  apiKey: 'demo-key',
-  projectId: 'demo-project',
-  authBaseUrl: 'http://localhost:4001',
-  dataBaseUrl: 'http://localhost:4002',
-  wsUrl: 'ws://localhost:4002'
-});
-
-const todos = document.getElementById('todos');
+import { createClient } from './sdk.js';
+const client = createClient({ projectId: 'demo-project', apiKey: 'demo-key', authBaseUrl: 'http://localhost:4001', dataBaseUrl: 'http://localhost:4002', wsUrl: 'ws://localhost:4002' });
 const map = new Map();
-let currentUser = null;
+let user = null;
 
-client.auth.onAuthStateChanged((user) => {
-  currentUser = user;
-  statusEl.textContent = `Logged in: ${user.email} (${user.id})`;
-});
-
-function draw() {
-  todos.innerHTML = '';
-  [...map.values()].forEach((todo) => {
-    const li = document.createElement('li');
-    li.textContent = `${todo.title} (${todo.done ? 'done' : 'open'}) - owner:${todo.ownerId}`;
-    todos.appendChild(li);
-  });
-}
+client.auth.onAuthStateChanged((u) => { user = u; status.textContent = `Logged in: ${u.email}`; });
+const draw = () => { todos.innerHTML=''; [...map.values()].forEach((t) => { const li=document.createElement('li'); li.textContent=t.title; todos.appendChild(li); }); };
 
 async function loadTodos() {
-  const data = await client.db.collection('todos').list({ limit: 50 });
-  data.docs.forEach((d) => map.set(d.id, d));
+  const result = await client.docDb.collection('todos').where('ownerId', '==', user?.id || '').limit(10).get();
+  map.clear();
+  result.docs.forEach((doc) => map.set(doc.id, doc));
   draw();
 }
 
-document.getElementById('signup').onclick = async () => {
-  await client.auth.signUp(email.value, password.value);
-  await loadTodos();
-};
-document.getElementById('signin').onclick = async () => {
-  await client.auth.signIn(email.value, password.value);
-  await loadTodos();
-};
-document.getElementById('addTodo').onclick = async () => {
-  const title = todoInput.value.trim();
-  if (!title || !currentUser) return;
-  const doc = await client.db.collection('todos').add({ title, done: false, ownerId: currentUser.id });
-  map.set(doc.id, doc);
-  draw();
-  todoInput.value = '';
-};
-
-client.db.collection('todos').onSnapshot((event) => {
-  if (event.type === 'deleted') map.delete(event.id);
-  if (event.doc) map.set(event.doc.id, event.doc);
-  draw();
-});
-
-loadTodos();
+signup.onclick = async () => { await client.auth.signUp(email.value, password.value); await loadTodos(); };
+signin.onclick = async () => { await client.auth.signIn(email.value, password.value); await loadTodos(); };
+addTodo.onclick = async () => { if (!user) return; const doc = await client.docDb.collection('todos').add({ title: todoInput.value, ownerId: user.id, done: false }); map.set(doc.id, doc); draw(); };
+client.docDb.collection('todos').doc('live').onSnapshot((doc) => { const value = doc.data(); map.set(value.id, value); draw(); });
 </script>
 </body>
 </html>

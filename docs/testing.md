@@ -1,16 +1,15 @@
 # Test Stratejisi
 
-## Unit
-- Rules engine evaluator
-- Structured query parser
+## Zorunlu Suite'ler
+- Unit: rules engine
+- Unit: docdb query parser
+- Integration: websocket subscribe akışı (todo)
+- Integration: auth refresh flow (todo)
 
-## Integration (plan)
-- Auth signup/login + doc create + subscribe
-- Rules deny/allow akışları
+## Coverage
+- Hedef: minimum %80
+- CI komutu: `npm run test:coverage`
 
-## Security (plan)
-- Auth bypass denemeleri
-- Rate limit aşımı testleri
-
-## Load (plan)
-- k6 ile websocket abonelik + query yükü
+## Performans
+- k6 script: `infra/loadtest/docdb.js`
+- Hedef: p95 read latency < 150ms

@@ -1,0 +1,4 @@
+const fs = require('fs'); const path = require('path');
+class MetadataStore { constructor(root = path.join(process.cwd(), 'data', 'storage')) { this.root=root; fs.mkdirSync(root,{recursive:true}); }
+_file(p,b){const d=path.join(this.root,p);fs.mkdirSync(d,{recursive:true});return path.join(d,`${b}.json`);} _read(p,b){try{return JSON.parse(fs.readFileSync(this._file(p,b),'utf8'));}catch{return {objects:{}};}} _write(p,b,s){const f=this._file(p,b);const t=`${f}.tmp`;fs.writeFileSync(t,JSON.stringify(s,null,2));fs.renameSync(t,f);} put(p,b,k,m){const s=this._read(p,b);s.objects[k]=m;this._write(p,b,s);} get(p,b,k){return this._read(p,b).objects[k]||null;} delete(p,b,k){const s=this._read(p,b);const v=s.objects[k]||null;delete s.objects[k];this._write(p,b,s);return v;} list(p,b,prefix=''){return Object.values(this._read(p,b).objects).filter(x=>x.key.startsWith(prefix));}}
+module.exports={MetadataStore};

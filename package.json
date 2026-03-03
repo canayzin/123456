@@ -1,0 +1,12 @@
+{
+  "name": "novacloud-core",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests/phase1.test.js tests/auth.test.js tests/docdb.test.js tests/jwt.test.js tests/docdb-enterprise.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/phase1.test.js tests/auth.test.js tests/docdb.test.js tests/jwt.test.js tests/docdb-enterprise.test.js",
+    "lint": "node -e \"console.log('lint skipped: zero-dependency protocol')\"",
+    "build": "node -e \"console.log('build skipped: runtime JS')\""
+  }
+}

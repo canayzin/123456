@@ -40,3 +40,11 @@ If `npm install` fails with `E403`, follow `docs/registry-access.md` and configu
 
 ## Faz Disiplini
 Faz 1 raporu: `docs/phase1-report.md` (dosya ağacı, komutlar, test özeti, bilinen eksikler ve net durum bilgisi içerir).
+
+
+## CI Internal Registry Setup
+For restricted corporate networks, configure GitHub Actions with:
+- repository variable: `NPM_REGISTRY_URL`
+- repository secret: `NPM_TOKEN`
+
+The CI workflow will auto-generate `.npmrc`, then run `npm ping` / `npm view` checks before install.

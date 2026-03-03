@@ -1,7 +1,4 @@
-# Copy to .npmrc and set reachable internal registry/proxy.
-registry=https://<YOUR_ARTIFACTORY_OR_NEXUS>/api/npm/npm/
+# Copy to .npmrc and replace with your actual corporate registry URL/path.
+registry=https://YOUR_REGISTRY_HOST/artifactory/api/npm/npm/
 always-auth=true
-//<YOUR_ARTIFACTORY_OR_NEXUS>/:_authToken=${NPM_TOKEN}
-
-# Optional: if your proxy is scoped
-# @novabase:registry=https://<YOUR_ARTIFACTORY_OR_NEXUS>/api/npm/npm/
+//YOUR_REGISTRY_HOST/artifactory/api/npm/npm/:_authToken=${NPM_TOKEN}

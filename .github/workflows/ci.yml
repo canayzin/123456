@@ -11,6 +11,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Configure internal npm registry (optional)
+        if: ${{ secrets.NPM_TOKEN != '' && vars.NPM_REGISTRY_URL != '' }}
+        run: |
+          REGISTRY_HOST="${NPM_REGISTRY_URL#https://}"
+          REGISTRY_HOST="${REGISTRY_HOST#http://}"
+          cat > .npmrc <<NPMRC
+          registry=${NPM_REGISTRY_URL}
+          always-auth=true
+          //${REGISTRY_HOST}/:_authToken=${NPM_TOKEN}
+          NPMRC
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL }}
+
+      - name: Verify registry reachability (optional)
+        run: |
+          npm config get registry
+          npm ping || true
+          npm view @types/node version || true
+
       - run: npm install
       - run: npm run lint
       - run: npm test

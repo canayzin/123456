@@ -14,3 +14,10 @@ Endpoints:
 
 
 If package install is blocked (E403), use the internal-registry guide: `docs/registry-access.md`.
+
+
+Corporate proxy validation:
+```bash
+npm ping
+npm view @types/node version
+```

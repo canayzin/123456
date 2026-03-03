@@ -13,17 +13,41 @@ If curl returns `403`, this is a network policy/egress restriction.
 
 Use Artifactory/Nexus/Verdaccio and point npm to it.
 
-1. Copy `.npmrc.enterprise.example` to `.npmrc`
-2. Set token and run install:
+### A) Activate `.npmrc` in project root
+
+```bash
+cp .npmrc.enterprise.example .npmrc
+```
+
+Then replace registry host/path with your real corporate URL.
+
+### B) Provide token and install
 
 ```bash
 export NPM_TOKEN="..."
 npm ci
 ```
 
-## 3) If external/internal registry is unavailable
+### C) Validate
 
-Temporary fallback for runtime-only validation:
+```bash
+npm ping
+npm view @types/node version
+```
+
+If both commands work, `npm install`/`npm ci` should work too.
+
+## 3) If proxy is not available: allowlist request
+
+Ask network/security team to allow:
+
+- `registry.npmjs.org:443`
+- (optional) `registry.yarnpkg.com:443`
+- (sometimes required) `codeload.github.com:443`, `objects.githubusercontent.com:443`
+
+`CONNECT tunnel failed` generally indicates proxy/firewall policy denial.
+
+## 4) If neither proxy nor allowlist is possible (temporary workaround)
 
 - Install dependencies in an internet-enabled environment
 - Archive and move `node_modules` + lockfile
@@ -39,6 +63,6 @@ tar -xzf node_modules.tgz
 npm test
 ```
 
-## 4) Engineering guardrail for this repo in restricted mode
+## 5) Engineering guardrail for restricted mode
 
 When registry is blocked, avoid adding new npm dependencies and prefer built-in Node.js modules until registry access is restored.

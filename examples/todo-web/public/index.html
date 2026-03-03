@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>NovaBase Todo Demo</title>
+  <style>body{font-family:Arial;max-width:760px;margin:2rem auto} input,button{padding:.5rem;margin:.25rem}</style>
+</head>
+<body>
+  <h1>NovaBase Todo Demo</h1>
+  <div>
+    <input id="email" value="demo@example.com" /><input id="password" value="password123" type="password" />
+    <button id="signup">Sign Up</button><button id="signin">Sign In</button>
+  </div>
+  <div><input id="todoInput" placeholder="todo" /><button id="addTodo">Add</button></div>
+  <pre id="status"></pre><ul id="todos"></ul>
+<script type="module">
+import { createClient } from './sdk.js';
+const client = createClient({ projectId: 'demo-project', apiKey: 'demo-key', authBaseUrl: 'http://localhost:4001', dataBaseUrl: 'http://localhost:4002', wsUrl: 'ws://localhost:4002' });
+const map = new Map();
+let user = null;
+
+client.auth.onAuthStateChanged((u) => { user = u; status.textContent = `Logged in: ${u.email}`; });
+const draw = () => { todos.innerHTML=''; [...map.values()].forEach((t) => { const li=document.createElement('li'); li.textContent=t.title; todos.appendChild(li); }); };
+
+async function loadTodos() {
+  const result = await client.docDb.collection('todos').where('ownerId', '==', user?.id || '').limit(10).get();
+  map.clear();
+  result.docs.forEach((doc) => map.set(doc.id, doc));
+  draw();
+}
+
+signup.onclick = async () => { await client.auth.signUp(email.value, password.value); await loadTodos(); };
+signin.onclick = async () => { await client.auth.signIn(email.value, password.value); await loadTodos(); };
+addTodo.onclick = async () => { if (!user) return; const doc = await client.docDb.collection('todos').add({ title: todoInput.value, ownerId: user.id, done: false }); map.set(doc.id, doc); draw(); };
+client.docDb.collection('todos').doc('live').onSnapshot((doc) => { const value = doc.data(); map.set(value.id, value); draw(); });
+</script>
+</body>
+</html>

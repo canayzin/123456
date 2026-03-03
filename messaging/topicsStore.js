@@ -1,0 +1,13 @@
+const fs = require('fs');
+const path = require('path');
+
+class TopicsStore {
+  file(projectId) {
+    const dir = path.join(process.cwd(), 'data', 'messaging', 'topics');
+    fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, `${projectId}.json`);
+  }
+  get(projectId) { try { return JSON.parse(fs.readFileSync(this.file(projectId), 'utf8')); } catch { return { topics: {} }; } }
+  save(projectId, row) { fs.writeFileSync(this.file(projectId), JSON.stringify(row, null, 2)); }
+}
+module.exports = { TopicsStore };

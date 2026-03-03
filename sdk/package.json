@@ -1,0 +1,17 @@
+{
+  "name": "@novacloud/sdk",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./auth": "./src/auth/index.js",
+    "./docdb": "./src/docdb/index.js",
+    "./functions": "./src/functions/index.js",
+    "./storage": "./src/storage/index.js",
+    "./messaging": "./src/messaging/index.js",
+    "./remoteconfig": "./src/remoteconfig/index.js",
+    "./analytics": "./src/analytics/index.js",
+    "./appcheck": "./src/appcheck/index.js"
+  }
+}

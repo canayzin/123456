@@ -1,0 +1,11 @@
+# Corporate / internal npm registry template
+# Usage:
+#   cp .npmrc.enterprise.example .npmrc
+#   export NPM_REGISTRY_URL=https://registry.your-company.example/npm/
+#   export NPM_TOKEN=***
+#   npm ci
+
+registry=${NPM_REGISTRY_URL}
+always-auth=true
+//${NPM_REGISTRY_URL#https://}:_authToken=${NPM_TOKEN}
+strict-ssl=true

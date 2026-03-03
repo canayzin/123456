@@ -1,0 +1,11 @@
+{
+  "name": "@novabase/rules-engine",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "lint": "node -e \"console.log('lint:ok rules')\"",
+    "build": "node -e \"console.log('build:noop rules')\""
+  }
+}

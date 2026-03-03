@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info:
+  title: NovaBase DocDB API
+  version: 1.0.0
+paths:
+  /v1/projects/{pid}/db/query:
+    post:
+      summary: Structured query
+      responses:
+        '200': { description: OK }

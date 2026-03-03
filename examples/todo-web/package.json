@@ -1,0 +1,14 @@
+{
+  "name": "@novabase/todo-web-demo",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "node -e \"console.log('lint:ok demo')\"",
+    "test": "node -e \"console.log('test:noop demo')\"",
+    "build": "node -e \"console.log('build:noop demo')\""
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

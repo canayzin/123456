@@ -34,5 +34,9 @@ npm run test:coverage
 cd infra && docker compose up --build
 ```
 
+
+## Restricted Network / Corporate Registry
+If `npm install` fails with `E403`, follow `docs/registry-access.md` and configure an internal npm proxy using `.npmrc.enterprise.example`.
+
 ## Faz Disiplini
 Faz 1 raporu: `docs/phase1-report.md` (dosya ağacı, komutlar, test özeti, bilinen eksikler ve net durum bilgisi içerir).
